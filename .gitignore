@@ -1,0 +1,17 @@
+#Dependencias (se generan con npm install)
+node_modules/
+
+#Variables de entorno (contiene contraseñas)
+.env
+.env.local
+
+#Archivos compilados (se regeneran con npm run build)
+.dist/
+.next/
+
+#logs
+*.log
+
+# Sistema operativo
+.DS_store
+Thumbs.db
