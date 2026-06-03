@@ -17,10 +17,10 @@ Sistema de gestión empresarial (ERP) moderno construido con un stack full stack
 
 ## Módulos del sistema
 
-- 🔐 **Autenticación** — Registro, login, roles (Admin, Empleado, Viewer)
-- 👥 **Clientes** — CRUD completo con auditoría
-- 🧾 **Facturación** — Generación de facturas con exportación PDF
-- 📊 **Reportes** — Dashboard con métricas y gráficas
+- **Autenticación** — Registro, login, roles (Admin, Empleado, Viewer)
+- **Clientes** — CRUD completo con auditoría
+- **Facturación** — Generación de facturas con exportación PDF
+- **Reportes** — Dashboard con métricas y gráficas
 
 ## Requisitos previos
 
@@ -61,18 +61,7 @@ DATABASE_URL="postgresql://nexus_admin:TU_PASSWORD@localhost:5432/nexuserp_dev"
 JWT_SECRET="tu-secret-key"
 ```
 
-## Estructura del proyecto
-nexus-erp/
-├── apps/
-│   ├── web/          # Frontend Next.js (Fase 2+)
-│   └── api/          # Backend NestJS
-│       ├── src/
-│       │   ├── prisma/     # PrismaService compartido
-│       │   └── main.ts
-│       └── prisma/
-│           ├── schema.prisma
-│           └── migrations/
-└── docker-compose.yml
+
 
 ## Fases de desarrollo
 
