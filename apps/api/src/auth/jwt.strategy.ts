@@ -22,12 +22,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   // Este método se ejecuta DESPUÉS de que Passport verifica la firma del JWT
   // El parámetro "payload" es lo que guardamos dentro del token al hacer login
-  async validate(payload: { sub: string; email: string; role: string }) {
-    // Lo que retornamos aquí queda disponible como "request.user" en los controllers
+  async validate(payload: { sub: string; email: string; role: string; companyId: string }) {
     return {
       id: payload.sub,
       email: payload.email,
       role: payload.role,
+      companyId: payload.companyId,
     };
   }
 }

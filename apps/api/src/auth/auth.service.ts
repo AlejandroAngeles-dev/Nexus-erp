@@ -31,7 +31,7 @@ export class AuthService {
       throw new ConflictException('Ya existe un usuario registrado con ese email');
     }
 
-    // 3. Hashear la contraseña — NUNCA guardamos texto plano
+    // 3. Hashear la contraseña 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
     // 4. Crear empresa y usuario en una sola transacción
@@ -80,7 +80,6 @@ export class AuthService {
     });
 
     // 2. Si no existe o está inactivo, error genérico
-    // IMPORTANTE: no decimos si el email existe o no — es una medida de seguridad
     if (!user || !user.active) {
       throw new UnauthorizedException('Credenciales incorrectas');
     }
@@ -103,17 +102,19 @@ export class AuthService {
         email: user.email,
         role: user.role,
         company: user.company.name,
+        
       },
     };
   }
 
-  private generateToken(user: { id: string; email: string; role: string }) {
+  private generateToken(user: { id: string; email: string; role: string, companyId: string }) {
     // El payload es la información que viaja DENTRO del JWT
-    // No incluyas datos sensibles aquí — el JWT es legible (solo firmado, no encriptado)
     const payload = {
       sub: user.id,      // "sub" es el estándar JWT para el ID del usuario
       email: user.email,
       role: user.role,
+      companyId: user.companyId,
+      
     };
 
     return this.jwtService.sign(payload);

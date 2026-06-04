@@ -25,6 +25,7 @@ model Company {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   user     User[]    
+  customers Customer[]
 
   @@map("companies")
 }
@@ -42,6 +43,25 @@ model User{
   updatedAt  DateTime @updatedAt
 
   @@map("users")
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  rfc       String?
+  address   String?
+  active    Boolean  @default(true)
+  notes     String?
+
+  company   Company  @relation(fields: [companyId], references: [id])
+  companyId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String   
+  @@map("customers")
 }
 
 enum Role {
