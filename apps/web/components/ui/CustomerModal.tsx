@@ -1,22 +1,38 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { createCustomer, CreateCustomerData } from '@/lib/api';
+import { createCustomer, CreateCustomerData, Customer } from '@/lib/api';
 
 interface Props {
   onClose: () => void;
   onSuccess: () => void;
+  customer?: Customer | null; // Si viene un cliente, estamos editando
 }
 
-export default function CustomerModal({ onClose, onSuccess }: Props) {
+export default function CustomerModal({ onClose, onSuccess, customer }: Props) {
   const { token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
+  const isEditing = !!customer;
 
   const [form, setForm] = useState<CreateCustomerData>({
     name: '', email: '', phone: '', rfc: '', address: '', notes: '',
   });
+
+  // Si viene un cliente, precargamos sus datos en el formulario
+  useEffect(() => {
+    if (customer) {
+      setForm({
+        name:    customer.name    ?? '',
+        email:   customer.email   ?? '',
+        phone:   customer.phone   ?? '',
+        rfc:     customer.rfc     ?? '',
+        address: customer.address ?? '',
+        notes:   customer.notes   ?? '',
+      });
+    }
+  }, [customer]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -28,16 +44,32 @@ export default function CustomerModal({ onClose, onSuccess }: Props) {
     setLoading(true);
     setError('');
     try {
-      // Limpiamos campos vacíos antes de enviar
       const data = Object.fromEntries(
         Object.entries(form).filter(([, v]) => v !== '')
       ) as CreateCustomerData;
 
-      await createCustomer(token, data);
+      if (isEditing && customer) {
+        // Editar 
+        await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/customers/${customer.id}`,
+          {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(data),
+          }
+        );
+      } else {
+        // Crear
+        await createCustomer(token, data);
+      }
+
       onSuccess();
       onClose();
     } catch (err: any) {
-      setError(err.message ?? 'Error al crear el cliente');
+      setError(err.message ?? 'Error al guardar el cliente');
     } finally {
       setLoading(false);
     }
@@ -47,9 +79,11 @@ export default function CustomerModal({ onClose, onSuccess }: Props) {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl">
 
-        {/* Header del modal */}
+        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-bold text-gray-900">Nuevo Cliente</h2>
+          <h2 className="text-lg font-bold text-gray-900">
+            {isEditing ? 'Editar Cliente' : 'Nuevo Cliente'}
+          </h2>
           <button
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-lg
@@ -66,13 +100,11 @@ export default function CustomerModal({ onClose, onSuccess }: Props) {
         <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
 
           {error && (
-            <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg
-                            text-sm text-red-600">
+            <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
               {error}
             </div>
           )}
 
-          {/* Nombre */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Nombre <span className="text-red-500">*</span>
@@ -89,7 +121,6 @@ export default function CustomerModal({ onClose, onSuccess }: Props) {
             />
           </div>
 
-          {/* Email y Teléfono */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
@@ -118,7 +149,6 @@ export default function CustomerModal({ onClose, onSuccess }: Props) {
             </div>
           </div>
 
-          {/* RFC y Dirección */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">RFC</label>
@@ -146,7 +176,6 @@ export default function CustomerModal({ onClose, onSuccess }: Props) {
             </div>
           </div>
 
-          {/* Notas */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Notas</label>
             <textarea
@@ -161,7 +190,6 @@ export default function CustomerModal({ onClose, onSuccess }: Props) {
             />
           </div>
 
-          {/* Botones */}
           <div className="flex gap-3 pt-2">
             <button
               type="button"
@@ -188,7 +216,7 @@ export default function CustomerModal({ onClose, onSuccess }: Props) {
                   </svg>
                   Guardando...
                 </>
-              ) : 'Guardar Cliente'}
+              ) : isEditing ? 'Guardar Cambios' : 'Guardar Cliente'}
             </button>
           </div>
         </form>

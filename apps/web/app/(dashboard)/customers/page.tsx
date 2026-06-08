@@ -16,6 +16,7 @@ export default function CustomersPage() {
   const [searchInput, setSearchInput] = useState('');
   const [loading, setLoading]       = useState(true);
   const [showModal, setShowModal]   = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
 
   const fetchCustomers = useCallback(async () => {
     if (!token) return;
@@ -173,8 +174,10 @@ export default function CustomersPage() {
                   </td>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center justify-end gap-2">
-                      <button className="p-1.5 hover:bg-blue-50 rounded-lg transition text-gray-400
-                                         hover:text-blue-600">
+                      <button
+                        onClick={() => setEditingCustomer(customer)}
+                        className="p-1.5 hover:bg-blue-50 rounded-lg transition text-gray-400
+                                   hover:text-blue-600">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                             d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -225,30 +228,17 @@ export default function CustomersPage() {
         )}
       </div>
 
-      {/* Modal nuevo cliente */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">Nuevo Cliente</h2>
-            <p className="text-sm text-gray-500">Formulario — próximo paso</p>
-            <button
-              onClick={() => setShowModal(false)}
-              className="mt-4 w-full py-2 border border-gray-200 rounded-lg text-sm
-                         text-gray-600 hover:bg-gray-50 transition"
-            >
-              Cerrar
-            </button>
-          </div>
-        </div>
+      {/* Modal de editat y agregar nuevo cliente */}
+      {(showModal || editingCustomer) && (
+        <CustomerModal
+          customer={editingCustomer}
+          onClose={() => { setShowModal(false); setEditingCustomer(null); }}
+          onSuccess={() => fetchCustomers()}
+        />
       )}
 
     </div>
   );
 
-  {showModal && (
-  <CustomerModal
-    onClose={() => setShowModal(false)}
-    onSuccess={() => fetchCustomers()}
-  />
-)}
+ 
 }

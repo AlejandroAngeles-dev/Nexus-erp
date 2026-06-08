@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { login as loginAPI } from '@/lib/api';
+import { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, token, isLoading } = useAuth();
 
   const [email, setEmail]         = useState('');
   const [password, setPassword]   = useState('');
@@ -15,6 +16,13 @@ export default function LoginPage() {
   const [remember, setRemember]   = useState(false);
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState('');
+
+  // Si ya hay sesión activa, redirigir al dashboard
+  useEffect(() => {
+    if (!isLoading && token) {
+      router.push('/dashboard');
+    }
+  }, [token, isLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -223,3 +231,5 @@ export default function LoginPage() {
     </main>
   );
 }
+
+
