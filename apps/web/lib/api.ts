@@ -106,3 +106,68 @@ export interface CreateCustomerData {
   address?: string;
   notes?: string;
 }
+
+// ── Invoices ─────────────────────────────────────────────────────────────────
+
+export async function getInvoices(
+  token: string,
+  page = 1,
+  limit = 10,
+  status?: string,
+  search?: string,
+) {
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+    ...(status && { status }),
+    ...(search && { search }),
+  });
+  return fetchAPI<PaginatedResponse<Invoice>>(`/invoices?${params}`, {}, token);
+}
+
+export async function createInvoice(token: string, data: CreateInvoiceData) {
+  return fetchAPI<Invoice>('/invoices', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }, token);
+}
+
+export async function updateInvoiceStatus(token: string, id: string, status: string) {
+  return fetchAPI<Invoice>(`/invoices/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  }, token);
+}
+
+// ── Tipos de facturas ────────────────────────────────────────────────────────
+
+export interface InvoiceItem {
+  id:          string;
+  description: string;
+  quantity:    number;
+  unitPrice:   number;
+  total:       number;
+}
+
+export interface Invoice {
+  id:         string;
+  number:     string;
+  status:     'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED';
+  subtotal:   number;
+  tax:        number;
+  total:      number;
+  notes:      string | null;
+  dueDate:    string;
+  customerId: string;
+  customer:   { id: string; name: string };
+  items:      InvoiceItem[];
+  createdAt:  string;
+}
+
+export interface CreateInvoiceData {
+  customerId: string;
+  dueDate:    string;
+  tax:        number;
+  notes?:     string;
+  items:      { description: string; quantity: number; unitPrice: number }[];
+}

@@ -24,8 +24,10 @@ model Company {
   active   Boolean   @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
   user     User[]    
   customers Customer[]
+  invoices  Invoice[] 
 
   @@map("companies")
 }
@@ -58,14 +60,61 @@ model Customer {
   company   Company  @relation(fields: [companyId], references: [id])
   companyId String
 
+  invoices  Invoice[]  // ← agregar esta línea junto a companyId
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   createdBy String   
   @@map("customers")
 }
 
+model Invoice {
+  id         String        @id @default(cuid())
+  number     String        @unique  // Número de factura: FAC-0001
+  status     InvoiceStatus @default(PENDING)
+  subtotal   Float
+  tax        Float         @default(0)
+  total      Float
+  notes      String?
+  dueDate    DateTime      // Fecha límite de pago
+
+  customer   Customer      @relation(fields: [customerId], references: [id])
+  customerId String
+
+  company    Company       @relation(fields: [companyId], references: [id])
+  companyId  String
+
+  createdBy  String
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  items      InvoiceItem[]
+
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id          String  @id @default(cuid())
+  description String
+  quantity    Float
+  unitPrice   Float
+  total       Float
+
+  invoice     Invoice @relation(fields: [invoiceId], references: [id])
+  invoiceId   String
+
+  @@map("invoice_items")
+}
+
+enum InvoiceStatus {
+  PENDING   
+  PAID      
+  OVERDUE   
+  CANCELLED 
+}
 enum Role {
   ADMIN
   EMPLOYEE
   VIEWER
 }
+
