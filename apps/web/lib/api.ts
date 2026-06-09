@@ -171,3 +171,38 @@ export interface CreateInvoiceData {
   notes?:     string;
   items:      { description: string; quantity: number; unitPrice: number }[];
 }
+
+// ── Users ────────────────────────────────────────────────────────────────────
+
+export async function getUsers(token: string) {
+  return fetchAPI<UserDetail[]>('/users', {}, token);
+}
+
+export async function createUser(token: string, data: CreateUserData) {
+  return fetchAPI<UserDetail>('/users', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }, token);
+}
+
+export async function deactivateUser(token: string, id: string) {
+  return fetchAPI<{ id: string; active: boolean }>(`/users/${id}`, {
+    method: 'DELETE',
+  }, token);
+}
+
+export interface UserDetail {
+  id:        string;
+  name:      string;
+  email:     string;
+  role:      'ADMIN' | 'EMPLOYEE' | 'VIEWER';
+  active:    boolean;
+  createdAt: string;
+}
+
+export interface CreateUserData {
+  name:     string;
+  email:    string;
+  password: string;
+  role:     'ADMIN' | 'EMPLOYEE' | 'VIEWER';
+}
