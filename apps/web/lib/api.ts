@@ -206,3 +206,18 @@ export interface CreateUserData {
   password: string;
   role:     'ADMIN' | 'EMPLOYEE' | 'VIEWER';
 }
+
+// ── Dashboard ────────────────────────────────────────────────────────────────
+
+export async function getDashboardMetrics(token: string) {
+  return fetchAPI<DashboardMetrics>('/dashboard/metrics', {}, token);
+}
+
+export interface DashboardMetrics {
+  totalCustomers:    number;
+  invoicesThisMonth: number;
+  revenueThisMonth:  number;
+  revenueChange:     number;
+  pendingInvoices:   number;
+  activity:          { day: string; count: number }[];
+}
