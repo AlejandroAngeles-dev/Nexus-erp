@@ -11,13 +11,45 @@ import { CurrentUser } from '../common/current-user.decorator';
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
-  constructor(private usersService: UsersService) {}
+  constructor(private usersService: UsersService) { }
 
   // GET /api/users
   @Get()
   findAll(@CurrentUser() user: any) {
     return this.usersService.findAll(user.companyId);
   }
+
+
+  // GET /api/users/me
+  @Get('me')
+  getMe(@CurrentUser() user: any) {
+    return this.usersService.findOne(user.id, user.companyId);
+  }
+
+  // PATCH /api/users/me
+  @Patch('me')
+  updateMe(
+    @Body() dto: UpdateUserDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.usersService.update(user.id, dto, user.companyId);
+  }
+
+
+  // PATCH /api/users/me/password
+  @Patch('me/password')
+  changePassword(
+    @Body() body: { currentPassword: string; newPassword: string },
+    @CurrentUser() user: any,
+  ) {
+    return this.usersService.changePassword(
+      user.id,
+      user.companyId,
+      body.currentPassword,
+      body.newPassword,
+    );
+  }
+
 
   // GET /api/users/:id
   @Get(':id')

@@ -6,17 +6,17 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async findAll(companyId: string) {
     return this.prisma.user.findMany({
       where: { companyId },
       select: {
-        id:        true,
-        name:      true,
-        email:     true,
-        role:      true,
-        active:    true,
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        active: true,
         createdAt: true,
       },
       orderBy: { createdAt: 'desc' },
@@ -27,11 +27,11 @@ export class UsersService {
     const user = await this.prisma.user.findFirst({
       where: { id, companyId },
       select: {
-        id:        true,
-        name:      true,
-        email:     true,
-        role:      true,
-        active:    true,
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        active: true,
         createdAt: true,
       },
     });
@@ -52,18 +52,18 @@ export class UsersService {
 
     return this.prisma.user.create({
       data: {
-        name:      dto.name,
-        email:     dto.email,
-        password:  hashedPassword,
-        role:      dto.role,
+        name: dto.name,
+        email: dto.email,
+        password: hashedPassword,
+        role: dto.role,
         companyId,
       },
       select: {
-        id:        true,
-        name:      true,
-        email:     true,
-        role:      true,
-        active:    true,
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        active: true,
         createdAt: true,
       },
     });
@@ -74,13 +74,13 @@ export class UsersService {
 
     return this.prisma.user.update({
       where: { id },
-      data:  dto,
+      data: dto,
       select: {
-        id:        true,
-        name:      true,
-        email:     true,
-        role:      true,
-        active:    true,
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        active: true,
         createdAt: true,
       },
     });
@@ -90,8 +90,36 @@ export class UsersService {
     await this.findOne(id, companyId);
     return this.prisma.user.update({
       where: { id },
-      data:  { active: false },
+      data: { active: false },
       select: { id: true, active: true },
     });
+  }
+
+  async changePassword(
+    id: string,
+    companyId: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    // Obtenemos el usuario CON el password para verificar
+    const user = await this.prisma.user.findFirst({
+      where: { id, companyId },
+    });
+
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+
+    // Verificamos que la contraseña actual sea correcta
+    const isValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isValid) throw new ConflictException('La contraseña actual es incorrecta');
+
+    // Hasheamos la nueva contraseña
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await this.prisma.user.update({
+      where: { id },
+      data: { password: hashedPassword },
+    });
+
+    return { message: 'Contraseña actualizada correctamente' };
   }
 }
