@@ -102,4 +102,73 @@ export class DashboardController {
       activity,
     };
   }
+
+  @Get('notifications')
+async getNotifications(@CurrentUser() user: any) {
+  const companyId = user.companyId;
+  const now = new Date();
+  const in3Days = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+  const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+  const [overdueInvoices, dueSoonInvoices, newCustomers] = await Promise.all([
+    // Facturas vencidas
+    this.prisma.invoice.findMany({
+      where: { companyId, status: 'OVERDUE' },
+      include: { customer: { select: { name: true } } },
+      orderBy: { dueDate: 'asc' },
+      take: 5,
+    }),
+
+    // Facturas que vencen en los próximos 3 días
+    this.prisma.invoice.findMany({
+      where: {
+        companyId,
+        status:  'PENDING',
+        dueDate: { gte: now, lte: in3Days },
+      },
+      include: { customer: { select: { name: true } } },
+      orderBy: { dueDate: 'asc' },
+      take: 5,
+    }),
+
+    // Clientes nuevos en las últimas 24 horas
+    this.prisma.customer.findMany({
+      where: { companyId, createdAt: { gte: last24h } },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    }),
+  ]);
+
+  const notifications = [
+    ...overdueInvoices.map(inv => ({
+      id:      `overdue-${inv.id}`,
+      type:    'overdue' as const,
+      title:   'Factura vencida',
+      message: `${inv.number} de ${inv.customer.name} venció el ${inv.dueDate.toLocaleDateString('es-MX')}`,
+      date:    inv.dueDate,
+      link:    '/invoices',
+    })),
+    ...dueSoonInvoices.map(inv => ({
+      id:      `duesoon-${inv.id}`,
+      type:    'warning' as const,
+      title:   'Factura por vencer',
+      message: `${inv.number} de ${inv.customer.name} vence el ${inv.dueDate.toLocaleDateString('es-MX')}`,
+      date:    inv.dueDate,
+      link:    '/invoices',
+    })),
+    ...newCustomers.map(c => ({
+      id:      `customer-${c.id}`,
+      type:    'info' as const,
+      title:   'Nuevo cliente',
+      message: `${c.name} fue agregado a tu cartera de clientes`,
+      date:    c.createdAt,
+      link:    '/customers',
+    })),
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  return {
+    notifications,
+    count: notifications.length,
+  };
+}
 }

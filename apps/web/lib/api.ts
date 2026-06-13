@@ -221,3 +221,69 @@ export interface DashboardMetrics {
   pendingInvoices:   number;
   activity:          { day: string; count: number }[];
 }
+
+export async function getInvoiceSummary(token: string) {
+  return fetchAPI<InvoiceSummary>('/invoices/summary', {}, token);
+}
+
+export interface InvoiceSummary {
+  totalAmount:   number;
+  totalChange:   number;
+  paidAmount:    number;
+  paidChange:    number;
+  pendingAmount: number;
+  pendingCount:  number;
+  overdueAmount: number;
+}
+
+export async function getPaymentCalendar(token: string) {
+  return fetchAPI<PaymentCalendar>('/invoices/calendar', {}, token);
+}
+
+export interface PaymentCalendar {
+  invoices:     Invoice[];
+  grouped:      Record<string, Invoice[]>;
+  totalPending: number;
+  count:        number;
+}
+
+// ── Reportes Semanales ────────────────────────────────────────────────────────────────
+export async function getWeeklyReport(token: string) {
+  return fetchAPI<WeeklyReport>('/invoices/weekly-report', {}, token);
+}
+
+export interface WeeklyReport {
+  period: { start: string; end: string };
+  invoices: {
+    thisWeek: Invoice[];
+    count:    number;
+    total:    number;
+    change:   number;
+  };
+  paid: {
+    count:  number;
+    total:  number;
+    change: number;
+  };
+  newCustomers: number;
+  topCustomers: { name: string; totalAmount: number; invoiceCount: number }[];
+}
+
+// ── Notificaciones ────────────────────────────────────────────────────────────────
+export async function getNotifications(token: string) {
+  return fetchAPI<NotificationsResponse>('/dashboard/notifications', {}, token);
+}
+
+export interface AppNotification {
+  id:      string;
+  type:    'overdue' | 'warning' | 'info';
+  title:   string;
+  message: string;
+  date:    string;
+  link:    string;
+}
+
+export interface NotificationsResponse {
+  notifications: AppNotification[];
+  count:         number;
+}

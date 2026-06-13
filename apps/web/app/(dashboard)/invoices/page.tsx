@@ -2,20 +2,24 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { getInvoices, updateInvoiceStatus, Invoice } from '@/lib/api';
+import { getInvoices, updateInvoiceStatus, getInvoiceSummary, Invoice, InvoiceSummary } from '@/lib/api';
+import InvoiceDetailModal from '@/components/ui/InvoiceDetailModal';
+import Link from 'next/link';
+import InvoiceModal from '@/components/ui/InvoiceModal';
 
 const STATUS_LABELS: Record<string, { label: string; classes: string }> = {
-  PENDING:   { label: 'Pendiente',  classes: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
-  PAID:      { label: 'Pagada',     classes: 'bg-green-100  text-green-700  border-green-200'  },
-  OVERDUE:   { label: 'Vencida',    classes: 'bg-red-100    text-red-700    border-red-200'    },
-  CANCELLED: { label: 'Cancelada',  classes: 'bg-gray-100   text-gray-600   border-gray-200'   },
+  PENDING: { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+  PAID: { label: 'Pagada', classes: 'bg-green-100  text-green-700  border-green-200' },
+  OVERDUE: { label: 'Vencida', classes: 'bg-red-100    text-red-700    border-red-200' },
+  CANCELLED: { label: 'Cancelada', classes: 'bg-gray-100   text-gray-600   border-gray-200' },
 };
 
+
 const STATUS_FILTERS = [
-  { value: '',          label: 'Todas'      },
-  { value: 'PAID',      label: 'Pagadas'    },
-  { value: 'PENDING',   label: 'Pendientes' },
-  { value: 'OVERDUE',   label: 'Vencidas'   },
+  { value: '', label: 'Todas' },
+  { value: 'PAID', label: 'Pagadas' },
+  { value: 'PENDING', label: 'Pendientes' },
+  { value: 'OVERDUE', label: 'Vencidas' },
 ];
 
 const formatCurrency = (amount: number) =>
@@ -30,32 +34,88 @@ const isOverdue = (dueDate: string, status: string) =>
 export default function InvoicesPage() {
   const { token } = useAuth();
 
-  const [invoices, setInvoices]       = useState<Invoice[]>([]);
-  const [total, setTotal]             = useState(0);
-  const [totalPages, setTotalPages]   = useState(1);
-  const [page, setPage]               = useState(1);
-  const [status, setStatus]           = useState('');
-  const [search, setSearch]           = useState('');
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [page, setPage] = useState(1);
+  const [status, setStatus] = useState('');
+  const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
-  const [loading, setLoading]         = useState(true);
+  const [loading, setLoading] = useState(true);
 
   const fetchInvoices = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     try {
-      const res = await getInvoices(token, page, 10, status || undefined, search || undefined);
+      const [res, sum] = await Promise.all([
+        getInvoices(token, page, 10, status || undefined, search || undefined),
+        getInvoiceSummary(token),
+      ]);
       setInvoices(res.data);
       setTotal(res.meta.total);
       setTotalPages(res.meta.totalPages);
+      setSummary(sum);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
   }, [token, page, status, search]);
-
   useEffect(() => { fetchInvoices(); }, [fetchInvoices]);
 
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+
+  const handleExport = async () => {
+    if (!token) return;
+
+    try {
+      // Traemos TODAS las facturas sin paginación para exportar
+      const res = await getInvoices(token, 1, 1000);
+      const all = res.data;
+
+      // Definimos las columnas del CSV
+      const headers = [
+        'Número',
+        'Cliente',
+        'Estado',
+        'Subtotal',
+        'IVA (%)',
+        'Total',
+        'Vencimiento',
+        'Fecha creación',
+      ];
+
+      // Convertimos cada factura a una fila
+      const rows = all.map(inv => [
+        inv.number,
+        inv.customer.name,
+        STATUS_LABELS[inv.status].label,
+        inv.subtotal.toFixed(2),
+        inv.tax,
+        inv.total.toFixed(2),
+        formatDate(inv.dueDate),
+        formatDate(inv.createdAt),
+      ]);
+
+      const csv = [
+        headers.join(','),
+        ...rows.map(row =>
+          row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+        ),
+      ].join('\n');
+
+
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `nexuserp-facturas-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error al exportar:', err);
+    }
+  };
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
@@ -69,16 +129,58 @@ export default function InvoicesPage() {
   };
 
   // Métricas calculadas desde los datos cargados
-  const totalAmount  = invoices.reduce((s, i) => s + i.total, 0);
-  const paidAmount   = invoices.filter(i => i.status === 'PAID').reduce((s, i) => s + i.total, 0);
-  const pendingAmount= invoices.filter(i => i.status === 'PENDING').reduce((s, i) => s + i.total, 0);
-  const overdueAmount= invoices.filter(i => i.status === 'OVERDUE').reduce((s, i) => s + i.total, 0);
+  const totalAmount = invoices.reduce((s, i) => s + i.total, 0);
+  const paidAmount = invoices.filter(i => i.status === 'PAID').reduce((s, i) => s + i.total, 0);
+  const pendingAmount = invoices.filter(i => i.status === 'PENDING').reduce((s, i) => s + i.total, 0);
+  const overdueAmount = invoices.filter(i => i.status === 'OVERDUE').reduce((s, i) => s + i.total, 0);
 
   // Vencimientos próximos — facturas PENDING u OVERDUE ordenadas por dueDate
   const upcoming = [...invoices]
     .filter(i => i.status === 'PENDING' || i.status === 'OVERDUE')
     .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
     .slice(0, 3);
+
+  const [summary, setSummary] = useState<InvoiceSummary | null>(null);
+
+  const handleDownloadInvoice = (invoice: Invoice) => {
+    const lines = [
+      ['NexusERP — Factura', ''],
+      ['', ''],
+      ['Número', invoice.number],
+      ['Estado', STATUS_LABELS[invoice.status].label],
+      ['Cliente', invoice.customer.name],
+      ['Fecha emisión', formatDate(invoice.createdAt)],
+      ['Fecha vencimiento', formatDate(invoice.dueDate)],
+      ['', ''],
+      ['CONCEPTOS', ''],
+      ['Descripción', 'Cantidad', 'Precio Unitario', 'Total'],
+      ...invoice.items.map(item => [
+        item.description,
+        String(item.quantity),
+        item.unitPrice.toFixed(2),
+        item.total.toFixed(2),
+      ]),
+      ['', ''],
+      ['Subtotal', '', '', invoice.subtotal.toFixed(2)],
+      [`IVA (${invoice.tax}%)`, '', '', (invoice.total - invoice.subtotal).toFixed(2)],
+      ['TOTAL', '', '', invoice.total.toFixed(2)],
+      ...(invoice.notes ? [['', ''], ['Notas', invoice.notes]] : []),
+    ];
+
+    const csv = lines
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${invoice.number}.pdf`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -92,18 +194,22 @@ export default function InvoicesPage() {
           </p>
         </div>
         <div className="flex gap-3">
-          <button className="flex items-center gap-2 px-4 py-2.5 border border-gray-200
-                             bg-white text-gray-700 text-sm font-medium rounded-lg
-                             hover:bg-gray-50 transition shadow-sm">
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-2 px-4 py-2.5 border border-gray-200
+             bg-white text-gray-700 text-sm font-medium rounded-lg
+             hover:bg-gray-50 transition shadow-sm">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                 d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
             Exportar Todo
           </button>
-          <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700
-                             text-white text-sm font-semibold px-4 py-2.5 rounded-lg
-                             transition shadow-sm">
+          <button
+            onClick={() => setShowInvoiceModal(true)}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700
+             text-white text-sm font-semibold px-4 py-2.5 rounded-lg
+             transition shadow-sm">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                 d="M12 4v16m8-8H4" />
@@ -117,36 +223,57 @@ export default function InvoicesPage() {
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <p className="text-sm text-gray-500 mb-1">Total Facturado</p>
-          <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalAmount)}</p>
-          <p className="text-xs text-green-600 font-medium mt-1 flex items-center gap-1">
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-            </svg>
-            +12% este mes
+          <p className="text-2xl font-bold text-gray-900">
+            {summary ? formatCurrency(summary.totalAmount) : '—'}
           </p>
+          {summary && (
+            <p className={`text-xs font-medium mt-1 flex items-center gap-1
+                    ${summary.totalChange >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d={summary.totalChange >= 0
+                    ? "M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                    : "M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"} />
+              </svg>
+              {summary.totalChange >= 0 ? '+' : ''}{summary.totalChange}% vs mes anterior
+            </p>
+          )}
         </div>
+
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <p className="text-sm text-gray-500 mb-1">Pagadas</p>
-          <p className="text-2xl font-bold text-blue-600">{formatCurrency(paidAmount)}</p>
-          <p className="text-xs text-gray-400 mt-1">
-            {total > 0
-              ? `${Math.round((invoices.filter(i => i.status === 'PAID').length / invoices.length) * 100)}% del total`
-              : '0% del total'}
+          <p className="text-2xl font-bold text-blue-600">
+            {summary ? formatCurrency(summary.paidAmount) : '—'}
           </p>
+          {summary && (
+            <p className={`text-xs font-medium mt-1
+                    ${summary.paidChange >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+              {summary.paidChange >= 0 ? '+' : ''}{summary.paidChange}% vs mes anterior
+            </p>
+          )}
         </div>
+
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <p className="text-sm text-gray-500 mb-1">Pendientes</p>
-          <p className="text-2xl font-bold text-yellow-600">{formatCurrency(pendingAmount)}</p>
-          <p className="text-xs text-gray-400 mt-1">
-            {invoices.filter(i => i.status === 'PENDING').length} facturas activas
+          <p className="text-2xl font-bold text-yellow-600">
+            {summary ? formatCurrency(summary.pendingAmount) : '—'}
           </p>
+          {summary && (
+            <p className="text-xs text-gray-400 mt-1">
+              {summary.pendingCount} facturas activas
+            </p>
+          )}
         </div>
+
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <p className="text-sm text-gray-500 mb-1">Vencidas</p>
-          <p className="text-2xl font-bold text-red-600">{formatCurrency(overdueAmount)}</p>
-          {overdueAmount > 0 && (
-            <p className="text-xs text-red-500 font-medium mt-1">Requiere acción inmediata</p>
+          <p className="text-2xl font-bold text-red-600">
+            {summary ? formatCurrency(summary.overdueAmount) : '—'}
+          </p>
+          {summary && summary.overdueAmount > 0 && (
+            <p className="text-xs text-red-500 font-medium mt-1">
+              Requiere acción inmediata
+            </p>
           )}
         </div>
       </div>
@@ -236,9 +363,9 @@ export default function InvoicesPage() {
                   <svg className="animate-spin w-6 h-6 mx-auto mb-2 text-blue-500"
                     fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10"
-                      stroke="currentColor" strokeWidth="4"/>
+                      stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                   Cargando facturas...
                 </td>
@@ -305,9 +432,11 @@ export default function InvoicesPage() {
                   <td className="px-5 py-4">
                     <div className="flex items-center justify-end gap-1">
                       {/* Ver detalle */}
-                      <button title="Ver detalle"
+                      <button
+                        onClick={() => setSelectedInvoice(invoice)}
+                        title="Ver detalle"
                         className="p-1.5 hover:bg-blue-50 rounded-lg transition
-                                   text-gray-400 hover:text-blue-600">
+             text-gray-400 hover:text-blue-600">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                             d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -317,9 +446,11 @@ export default function InvoicesPage() {
                       </button>
 
                       {/* Descargar */}
-                      <button title="Descargar PDF"
+                      <button
+                        onClick={() => handleDownloadInvoice(invoice)}
+                        title="Descargar PDF"
                         className="p-1.5 hover:bg-gray-100 rounded-lg transition
-                                   text-gray-400 hover:text-gray-600">
+             text-gray-400 hover:text-gray-600">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                             d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -382,8 +513,8 @@ export default function InvoicesPage() {
                   className={`w-8 h-8 flex items-center justify-center border rounded-lg
                                text-sm font-medium transition
                               ${page === p
-                                ? 'bg-blue-600 text-white border-blue-600'
-                                : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
                   {p}
                 </button>
               ))}
@@ -445,10 +576,11 @@ export default function InvoicesPage() {
               })
             )}
           </div>
-          <button className="w-full mt-4 py-2 border border-gray-200 rounded-lg text-sm
-                             font-medium text-gray-600 hover:bg-gray-50 transition">
+          <Link href="/calendar"
+            className="w-full mt-4 py-2 border border-gray-200 rounded-lg text-sm
+             font-medium text-gray-600 hover:bg-gray-50 transition text-center block">
             Ver Calendario de Pagos
-          </button>
+          </Link>
         </div>
 
         {/* Consolidación bancaria */}
@@ -470,12 +602,31 @@ export default function InvoicesPage() {
             </div>
             <p className="text-sm text-blue-200">Tu equipo de finanzas está activo</p>
           </div>
-          <button className="w-full py-2.5 bg-white text-blue-600 font-semibold text-sm
-                             rounded-lg hover:bg-blue-50 transition">
+          <Link href="/weekly-report"
+            className="w-full py-2.5 bg-white text-blue-600 font-semibold text-sm
+             rounded-lg hover:bg-blue-50 transition text-center block">
             Acceder al Informe Semanal
-          </button>
+          </Link>
         </div>
       </div>
+
+      {/* Modal de detalle de factura */}
+      {selectedInvoice && (
+        <InvoiceDetailModal
+          invoice={selectedInvoice}
+          onClose={() => setSelectedInvoice(null)}
+        />
+      )}
+
+      {/* Modal de creación de factura */}
+      {showInvoiceModal && (
+        <InvoiceModal
+          onClose={() => setShowInvoiceModal(false)}
+          onSuccess={() => fetchInvoices()}
+        />
+      )}
     </div>
   );
+
+
 }

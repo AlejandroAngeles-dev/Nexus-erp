@@ -10,7 +10,7 @@ import { CurrentUser } from '../common/current-user.decorator';
 @Controller('invoices')
 @UseGuards(JwtAuthGuard)
 export class InvoicesController {
-  constructor(private invoicesService: InvoicesService) {}
+  constructor(private invoicesService: InvoicesService) { }
 
   // POST /api/invoices
   @Post()
@@ -25,20 +25,37 @@ export class InvoicesController {
   @Get()
   findAll(
     @CurrentUser() user: any,
-    @Query('page')   page?:   string,
-    @Query('limit')  limit?:  string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
     @Query('status') status?: string,
     @Query('search') search?: string,
   ) {
     return this.invoicesService.findAll(
       user.companyId,
-      page   ? parseInt(page)   : 1,
-      limit  ? parseInt(limit)  : 10,
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 10,
       status,
       search,
     );
   }
 
+  // GET /api/invoices/summary
+  @Get('summary')
+  getSummary(@CurrentUser() user: any) {
+    return this.invoicesService.getSummary(user.companyId);
+  }
+
+  // GET /api/invoices/calendar
+  @Get('calendar')
+  getPaymentCalendar(@CurrentUser() user: any) {
+    return this.invoicesService.getPaymentCalendar(user.companyId);
+  }
+
+  // GET /api/invoices/weekly-report
+  @Get('weekly-report')
+  getWeeklyReport(@CurrentUser() user: any) {
+    return this.invoicesService.getWeeklyReport(user.companyId);
+  }
   // GET /api/invoices/:id
   @Get(':id')
   findOne(

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { getDashboardMetrics, DashboardMetrics } from '@/lib/api';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Link from 'next/link';
 
 const formatCurrency = (amount: number) =>
@@ -25,10 +26,10 @@ export default function DashboardPage() {
 
   const cards = metrics ? [
     {
-      label:    'CLIENTES ACTIVOS',
-      value:    String(metrics.totalCustomers),
-      change:   '+12%',
-      type:     'positive',
+      label: 'CLIENTES ACTIVOS',
+      value: String(metrics.totalCustomers),
+      change: '+12%',
+      type: 'positive',
       icon: (
         <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -38,10 +39,10 @@ export default function DashboardPage() {
       iconBg: 'bg-blue-50',
     },
     {
-      label:  'FACTURAS DEL MES',
-      value:  String(metrics.invoicesThisMonth),
+      label: 'FACTURAS DEL MES',
+      value: String(metrics.invoicesThisMonth),
       change: '+5.2%',
-      type:   'positive',
+      type: 'positive',
       icon: (
         <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -51,10 +52,10 @@ export default function DashboardPage() {
       iconBg: 'bg-purple-50',
     },
     {
-      label:  'INGRESOS DEL MES',
-      value:  formatCurrency(metrics.revenueThisMonth),
+      label: 'INGRESOS DEL MES',
+      value: formatCurrency(metrics.revenueThisMonth),
       change: metrics.revenueChange >= 0 ? `+${metrics.revenueChange}%` : `${metrics.revenueChange}%`,
-      type:   metrics.revenueChange >= 0 ? 'positive' : 'negative',
+      type: metrics.revenueChange >= 0 ? 'positive' : 'negative',
       icon: (
         <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -64,10 +65,10 @@ export default function DashboardPage() {
       iconBg: 'bg-orange-50',
     },
     {
-      label:  'PENDIENTES',
-      value:  String(metrics.pendingInvoices),
+      label: 'PENDIENTES',
+      value: String(metrics.pendingInvoices),
       change: 'Atención',
-      type:   'warning',
+      type: 'warning',
       icon: (
         <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -102,7 +103,7 @@ export default function DashboardPage() {
       {/* Métricas */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          {[1,2,3,4].map(i => (
+          {[1, 2, 3, 4].map(i => (
             <div key={i} className="bg-white rounded-xl border border-gray-200 p-5 animate-pulse">
               <div className="w-11 h-11 bg-gray-200 rounded-xl mb-3" />
               <div className="h-3 bg-gray-200 rounded w-24 mb-2" />
@@ -150,20 +151,48 @@ export default function DashboardPage() {
         <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-5">
           <h2 className="text-base font-semibold text-gray-900 mb-4">Actividad Reciente</h2>
           {loading ? (
-            <div className="h-40 bg-gray-100 rounded-lg animate-pulse" />
+            <div className="h-48 bg-gray-100 rounded-lg animate-pulse" />
           ) : (
-            <div className="flex items-end gap-3 h-40">
-              {metrics?.activity.map((item, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <div
-                    className="w-full bg-blue-200 hover:bg-blue-400 rounded-t-md transition-all"
-                    style={{ height: `${maxActivity > 0 ? (item.count / maxActivity) * 100 : 5}%`,
-                             minHeight: '4px' }}
-                  />
-                  <span className="text-xs text-gray-400">{item.day}</span>
-                </div>
-              ))}
-            </div>
+            <ResponsiveContainer width="100%" height={192}>
+              <BarChart
+                data={metrics?.activity}
+                margin={{ top: 4, right: 0, left: -28, bottom: 0 }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="#F1F5F9"
+                />
+                <XAxis
+                  dataKey="day"
+                  tick={{ fontSize: 11, fill: '#94A3B8' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fontSize: 11, fill: '#94A3B8' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip
+                  cursor={{ fill: '#EFF6FF' }}
+                  contentStyle={{
+                    borderRadius: '8px',
+                    border: '1px solid #E2E8F0',
+                    fontSize: '12px',
+                    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+                  }}
+                  formatter={(value) => [value, 'Facturas']}
+                />
+                <Bar
+                  dataKey="count"
+                  fill="#2E86C1"
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={40}
+                />
+              </BarChart>
+            </ResponsiveContainer>
           )}
         </div>
 
