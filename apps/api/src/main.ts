@@ -6,6 +6,16 @@ import 'dotenv/config';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  const allowedOrigins = [
+    'http://localhost:3000',
+    process.env.FRONTEND_URL,
+  ].filter(Boolean);
+
+  app.enableCors({
+    origin: allowedOrigins,
+    credentials: true,
+  });
+
   // Prefijo global — todos los endpoints quedan bajo /api
   // POST /api/auth/login, GET /api/customers, etc.
   app.setGlobalPrefix('api');
@@ -19,14 +29,9 @@ async function bootstrap() {
     }),
   );
 
-  // CORS — permite que el frontend en localhost:3000 consuma la API
-  app.enableCors({
-    origin: process.env.FRONTEND_URL ?? 'http://localhost:3000',
-  });
 
-  const port = process.env.API_PORT ?? 3001;
+  const port = process.env.PORT ?? process.env.API_PORT ?? 3001;
   await app.listen(port);
-  console.log(` API corriendo en http://localhost:${port}/api`);
 }
 
-bootstrap();
+bootstrap();  
