@@ -8,6 +8,8 @@ async function bootstrap() {
 
   const allowedOrigins = [
     'http://localhost:3000',
+    'https://nexus-erp-self.vercel.app',
+    'https://nexus-erp-alejandroangeles-devs-projects.vercel.app',
     process.env.FRONTEND_URL,
   ].filter(Boolean);
 
