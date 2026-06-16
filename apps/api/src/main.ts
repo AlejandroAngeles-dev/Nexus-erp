@@ -14,10 +14,24 @@ async function bootstrap() {
   ].filter(Boolean);
 
   app.enableCors({
-    origin: allowedOrigins,
-    credentials: true,
-  });
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    if (!origin) return callback(null, true);
 
+    const allowed = [
+      /^http:\/\/localhost:\d+$/,
+      /^https:\/\/.*\.vercel\.app$/,
+    ];
+
+    const isAllowed = allowed.some(pattern => pattern.test(origin));
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS bloqueado para origen: ${origin}`));
+    }
+  },
+  credentials: true,
+});
   // Prefijo global — todos los endpoints quedan bajo /api
   // POST /api/auth/login, GET /api/customers, etc.
   app.setGlobalPrefix('api');
