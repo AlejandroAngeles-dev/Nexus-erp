@@ -66,10 +66,10 @@ JWT_SECRET="tu-secret-key"
 ## Fases de desarrollo
 
 - [x] Fase 1 — Cimientos: Docker, PostgreSQL, NestJS, Prisma
-- [ ] Fase 2 — Autenticación: Auth.js, JWT, roles
-- [ ] Fase 3 — Módulos de negocio: Clientes, Facturación
-- [ ] Fase 4 — Frontend: Dashboard, gráficas, exportación
-- [ ] Fase 5 — Deploy: CI/CD, producción
+- [x] Fase 2 — Autenticación: Auth.js, JWT, roles
+- [x] Fase 3 — Módulos de negocio: Clientes, Facturación
+- [x] Fase 4 — Frontend: Dashboard, gráficas, exportación
+- [x] Fase 5 — Deploy: CI/CD, producción
 
 ## Autor
 
